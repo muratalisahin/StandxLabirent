@@ -325,7 +325,7 @@ function HubScreen({
             </li>
             <li>
               <span className="howto-icon howto-bad"><X className="icon-sm" /></span>
-              Each wrong answer cuts 10 points immediately. A door is worth 50, then 40, then 30. After two misses the door opens.
+              Each wrong answer cuts 10 points immediately. First try is worth 50, a second try is worth 40. Two misses opens the door with no points.
             </li>
             <li>
               <span className="howto-icon howto-win"><Trophy className="icon-sm" /></span>
@@ -592,14 +592,21 @@ function GameScreen({
   const completeDoor = (misses: number) => {
     if (pendingDoor === null) return;
     const doorIndex = pendingDoor;
-    const awarded = POINTS_PER_DOOR - POINTS_WRONG * misses;
+    const skipped = misses >= 2;
+    const awarded = skipped ? 0 : POINTS_PER_DOOR - POINTS_WRONG * misses;
+    const openedCount = openedDoors.length + 1;
     setOpenedDoors((open) => [...open, doorIndex]);
     setDoorMisses(0);
     setDoorAward(awarded);
+    setPendingDoor(null);
+    if (skipped) {
+      playDoorOpen();
+      setOverlay(openedCount === DOOR_COUNT ? 'all-doors' : 'none');
+      return;
+    }
     setRunScore((score) => score + POINTS_PER_DOOR);
     setScorePulse('gain');
     window.setTimeout(() => setScorePulse('none'), 480);
-    setPendingDoor(null);
     playCorrect();
     window.setTimeout(() => playDoorOpen(), 180);
     setOverlay('correct');
@@ -770,7 +777,7 @@ function GameScreen({
         <FeedbackModal
           tone="wrong"
           title="FALSE"
-          body={doorMisses >= 2 ? 'Two misses. The door opens for 30.' : 'Wrong. Try one more time.'}
+          body={doorMisses >= 2 ? 'Two misses. This door gives no points.' : 'Wrong. Try one more time.'}
           learn={doorMisses >= 2 ? `Answer: ${currentRound.options[currentRound.answerIndex]}` : undefined}
           bonus={`-${POINTS_WRONG} POINTS`}
           buttonLabel={doorMisses >= 2 ? 'CONTINUE' : 'OK'}
@@ -785,8 +792,8 @@ function GameScreen({
       {overlay === 'correct' && (
         <FeedbackModal
           tone="success"
-          title={doorAward <= POINTS_PER_DOOR - POINTS_WRONG * 2 ? 'DOOR OPEN' : 'TRUE'}
-          body={doorAward <= POINTS_PER_DOOR - POINTS_WRONG * 2 ? 'Two misses. Head to the next door.' : 'Door opened. Keep going.'}
+          title="TRUE"
+          body="Door opened. Keep going."
           bonus={`+${doorAward} POINTS`}
           buttonLabel="CONTINUE"
           mascotMood="nod"
