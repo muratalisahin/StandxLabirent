@@ -386,7 +386,7 @@ function HubScreen({
 
         <section className="panel preview-panel">
           <div className="preview-frame">
-            <MiniMazePreview maze={layout.maze} />
+            <MiniMazePreview maze={layout.maze} start={layout.start} />
           </div>
           <Leaderboard difficulty={difficulty} />
         </section>
@@ -395,17 +395,29 @@ function HubScreen({
   );
 }
 
-function MiniMazePreview({ maze }: { maze: string[] }) {
+function MiniMazePreview({ maze, start }: { maze: string[]; start: { row: number; col: number } }) {
+  const rows = Math.min(maze.length, 14);
+  const cols = maze[0].length;
   return (
     <div className="mini-maze">
-      {maze.slice(0, 14).map((row, rowIndex) => (
-        <div key={rowIndex} className="mini-maze-row" style={{ gridTemplateColumns: `repeat(${maze[0].length}, 1fr)` }}>
-          {[...row].map((cell, colIndex) => (
-            <div key={colIndex} className={`mini-cell ${cell === '#' ? 'mini-wall' : 'mini-floor'}`} />
-          ))}
+      <div className="mini-maze-grid">
+        {maze.slice(0, 14).map((row, rowIndex) => (
+          <div key={rowIndex} className="mini-maze-row" style={{ gridTemplateColumns: `repeat(${maze[0].length}, 1fr)` }}>
+            {[...row].map((cell, colIndex) => (
+              <div key={colIndex} className={`mini-cell ${cell === '#' ? 'mini-wall' : 'mini-floor'}`} />
+            ))}
+          </div>
+        ))}
+        <div
+          className="mini-mascot"
+          style={{
+            left: `${((start.col + 0.5) / cols) * 100}%`,
+            top: `${((start.row + 0.5) / rows) * 100}%`,
+          }}
+        >
+          <Mascot size="sm" />
         </div>
-      ))}
-      <div className="mini-mascot"><Mascot size="sm" /></div>
+      </div>
     </div>
   );
 }
@@ -910,6 +922,19 @@ function Minimap({
           }}
         >
           X
+        </span>
+        <span
+          className={`minimap-you face-${facing}`}
+          style={{
+            left: `${((position.col + 0.5) / maze[0].length) * 100}%`,
+            top: `${((position.row + 0.5) / maze.length) * 100}%`,
+            width: `${Math.min(16, 200 / maze[0].length)}%`,
+            height: `${Math.min(16, 200 / maze.length)}%`,
+          }}
+        >
+          <i className="minimap-you-leaf" />
+          <i className="minimap-you-eye" />
+          <i className="minimap-you-dir" />
         </span>
       </div>
       <div className="minimap-legend">
