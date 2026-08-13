@@ -782,16 +782,16 @@ button:disabled { opacity: .45; cursor: default; }
 }
 
 .maze-you .mascot {
-  animation: mascotLookAhead 2.6s ease-in-out infinite;
+  animation: mascotLookAhead 3.2s ease-in-out infinite;
 }
 
 .maze-you .mascot-iris {
-  transform: translateY(-14%);
+  transform: translate(-12%, -6%);
 }
 
 @keyframes mascotLookAhead {
-  0%, 100% { transform: rotateX(-24deg) rotateY(0deg) translateZ(14px); }
-  50% { transform: rotateX(-18deg) rotateY(0deg) translateZ(16px); }
+  0%, 100% { transform: rotateX(10deg) rotateY(-38deg) translateZ(16px); }
+  50% { transform: rotateX(6deg) rotateY(-30deg) translateZ(18px); }
 }
 
 .maze-compass {
