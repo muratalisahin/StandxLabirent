@@ -77,11 +77,11 @@ function Mascot({
   mood = 'idle',
 }: {
   size?: 'sm' | 'md' | 'lg';
-  mood?: 'idle' | 'sad' | 'happy' | 'cry';
+  mood?: 'idle' | 'sad' | 'happy' | 'cry' | 'nod' | 'tired';
 }) {
   const pose = mood === 'cry' ? 'sad' : mood;
   return (
-    <div className={`mascot-scene mascot-scene-${size}`}>
+    <div className={`mascot-scene mascot-scene-${size} ${mood === 'tired' ? 'mascot-scene-tired' : ''}`}>
       <div className={`mascot mascot-${size} mascot-${pose} ${mood === 'cry' ? 'mascot-cry' : ''}`} role="img" aria-label="StandX mascot">
         <div className="mascot-highlight" />
         <div className="mascot-stalk" />
@@ -465,7 +465,6 @@ function GameScreen({
   const rounds = useMemo(() => buildDoorRounds(DOOR_COUNT), []);
   const [position, setPosition] = useState(start);
   const [facing, setFacing] = useState<Facing>(2);
-  const [visited, setVisited] = useState<Set<string>>(() => new Set([`${start.row},${start.col}`]));
   const [openedDoors, setOpenedDoors] = useState<number[]>([]);
   const [pendingDoor, setPendingDoor] = useState<number | null>(null);
   const [overlay, setOverlay] = useState<Overlay>('none');
@@ -529,14 +528,12 @@ function GameScreen({
           setOverlay('locked');
           return;
         }
-        setVisited((cells) => new Set(cells).add(`${next.row},${next.col}`));
         setPosition(next);
         setPendingDoor(doorIndex);
         setOverlay('question');
         return;
       }
 
-      setVisited((cells) => new Set(cells).add(`${next.row},${next.col}`));
       setPosition(next);
       if ((cell === 'X' || (next.row === exit.row && next.col === exit.col)) && exitUnlocked) {
         void finishRun();
@@ -692,7 +689,6 @@ function GameScreen({
             exit={exit}
             nextDoorIndex={nextDoorIndex}
             facing={facing}
-            visited={visited}
             expanded={difficultyId === 'hard'}
           />
         </div>
@@ -737,10 +733,11 @@ function GameScreen({
       {overlay === 'wrong' && (
         <FeedbackModal
           tone="wrong"
-          title="WRONG!"
-          body="Stay at this door and try again."
+          title="FALSE"
+          body="No. Stay at this door and try again."
           bonus={`-${POINTS_WRONG} POINTS`}
           buttonLabel="OK"
+          mascotMood="sad"
           onClose={() => setOverlay(pendingDoor !== null ? 'question' : 'none')}
         />
       )}
@@ -748,10 +745,11 @@ function GameScreen({
       {overlay === 'correct' && (
         <FeedbackModal
           tone="success"
-          title="CORRECT!"
+          title="TRUE"
           body="Door opened. Keep going."
           bonus={`+${POINTS_PER_DOOR} POINTS`}
           buttonLabel="CONTINUE"
+          mascotMood="nod"
           onClose={() => setOverlay(openedDoors.length === DOOR_COUNT ? 'all-doors' : 'none')}
         />
       )}
@@ -764,6 +762,7 @@ function GameScreen({
           body="You passed all SIP doors!"
           bonus={`+${DOOR_COUNT * POINTS_PER_DOOR} POINTS`}
           buttonLabel="GO TO EXIT"
+          mascotMood="nod"
           onClose={() => {
             setExitUnlocked(true);
             setOverlay('none');
@@ -815,7 +814,6 @@ function Minimap({
   exit,
   nextDoorIndex,
   facing,
-  visited,
   expanded,
 }: {
   maze: string[];
@@ -824,7 +822,6 @@ function Minimap({
   exit: { row: number; col: number };
   nextDoorIndex: number;
   facing: Facing;
-  visited: Set<string>;
   expanded?: boolean;
 }) {
   return (
@@ -839,11 +836,10 @@ function Minimap({
               const isExit = rowIndex === exit.row && colIndex === exit.col;
               const next = doorIndex === nextDoorIndex;
               const anyDoor = doorIndex >= 0;
-              const seen = visited.has(`${rowIndex},${colIndex}`);
               return (
                 <i
                   key={colIndex}
-                  className={`minimap-cell ${cell === '#' ? 'is-wall' : 'is-floor'} ${seen ? 'is-seen' : ''} ${here ? 'is-player' : ''} ${isExit ? 'is-exit' : ''} ${anyDoor ? 'is-door' : ''} ${next ? 'is-next' : ''}`}
+                  className={`minimap-cell ${cell === '#' ? 'is-wall' : 'is-floor'} ${here ? 'is-player' : ''} ${isExit ? 'is-exit' : ''} ${anyDoor ? 'is-door' : ''} ${next ? 'is-next' : ''}`}
                 />
               );
             })}
@@ -1019,12 +1015,12 @@ function FeedbackModal({
   bonus?: string;
   buttonLabel: string;
   onClose: () => void;
-  mascotMood?: 'idle' | 'sad' | 'happy' | 'cry';
+  mascotMood?: 'idle' | 'sad' | 'happy' | 'cry' | 'nod' | 'tired';
 }) {
   return (
     <ModalShell>
       <div className={`feedback-modal feedback-${tone}`}>
-        <Mascot size="md" mood={mascotMood ?? (tone === 'wrong' ? 'cry' : 'happy')} />
+        <Mascot size="md" mood={mascotMood ?? (tone === 'wrong' ? 'sad' : 'nod')} />
         {subtitle && <p className="feedback-subtitle">{subtitle}</p>}
         <h3>{title}</h3>
         <p>{body}</p>
@@ -1052,7 +1048,7 @@ function FinishedScreen({
     <div className="app-shell center-screen finished-screen">
       <div className="finished-card">
         <StandXLogo className="finished-logo" />
-        <Mascot size="lg" mood="happy" />
+        <Mascot size="lg" mood="tired" />
         <p className="feedback-subtitle">YOU WIN!</p>
         <h2>Run Complete</h2>
         <p>Your score has been saved.</p>
