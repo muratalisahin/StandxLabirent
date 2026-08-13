@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from 'react';
 import {
   AtSign,
   Check,
@@ -333,7 +333,7 @@ function HubScreen({
             <span>W</span><span>A</span><span>S</span><span>D</span>
             <span className="control-or">or arrow keys</span>
           </div>
-          <p className="control-note">Mobile: use the on-screen joystick.</p>
+          <p className="control-note">Phone: swipe the maze or use the on-screen pad.</p>
 
           <div className="stander-card">
             <Mascot size="md" />
@@ -663,6 +663,7 @@ function GameScreen({
             })}
           </div>
           <div className="maze-fog" />
+          <MazeSwipeLayer disabled={blocked} onMove={move} />
           <div className="maze-you">
             <Mascot size="md" mood="idle" />
           </div>
@@ -752,6 +753,40 @@ function GameScreen({
   );
 }
 
+function MazeSwipeLayer({
+  disabled,
+  onMove,
+}: {
+  disabled: boolean;
+  onMove: (row: number, col: number) => void;
+}) {
+  const start = useRef<{ x: number; y: number } | null>(null);
+
+  return (
+    <div
+      className="maze-swipe"
+      onPointerDown={(event) => {
+        if (disabled || event.button) return;
+        start.current = { x: event.clientX, y: event.clientY };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerUp={(event) => {
+        const origin = start.current;
+        start.current = null;
+        if (!origin || disabled) return;
+        const dx = event.clientX - origin.x;
+        const dy = event.clientY - origin.y;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < 28) return;
+        if (Math.abs(dx) > Math.abs(dy)) onMove(0, dx > 0 ? 1 : -1);
+        else onMove(dy > 0 ? 1 : -1, 0);
+      }}
+      onPointerCancel={() => {
+        start.current = null;
+      }}
+    />
+  );
+}
+
 function Minimap({
   maze,
   doors,
@@ -813,23 +848,58 @@ function DoorTile({
 }
 
 function DirectionPad({ onMove, disabled }: { onMove: (row: number, col: number) => void; disabled: boolean }) {
+  const holdRef = useRef<number | null>(null);
+  const delayRef = useRef<number | null>(null);
+
+  const stopHold = () => {
+    if (delayRef.current) window.clearTimeout(delayRef.current);
+    if (holdRef.current) window.clearInterval(holdRef.current);
+    delayRef.current = null;
+    holdRef.current = null;
+  };
+
+  const startHold = (row: number, col: number) => {
+    if (disabled) return;
+    stopHold();
+    onMove(row, col);
+    delayRef.current = window.setTimeout(() => {
+      holdRef.current = window.setInterval(() => onMove(row, col), 140);
+    }, 220);
+  };
+
+  useEffect(() => {
+    if (disabled) stopHold();
+  }, [disabled]);
+
+  useEffect(() => stopHold, []);
+
+  const press = (row: number, col: number) => ({
+    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      startHold(row, col);
+    },
+    onPointerUp: stopHold,
+    onPointerCancel: stopHold,
+  });
+
   const btn = 'dpad-btn';
   return (
     <div className="dpad">
       <div />
-      <button type="button" className={btn} disabled={disabled} onClick={() => onMove(-1, 0)} aria-label="Up">
+      <button type="button" className={btn} disabled={disabled} {...press(-1, 0)} aria-label="Up">
         <ChevronUp />
       </button>
       <div />
-      <button type="button" className={btn} disabled={disabled} onClick={() => onMove(0, -1)} aria-label="Left">
+      <button type="button" className={btn} disabled={disabled} {...press(0, -1)} aria-label="Left">
         <ChevronLeft />
       </button>
       <div className="dpad-center" />
-      <button type="button" className={btn} disabled={disabled} onClick={() => onMove(0, 1)} aria-label="Right">
+      <button type="button" className={btn} disabled={disabled} {...press(0, 1)} aria-label="Right">
         <ChevronRight />
       </button>
       <div />
-      <button type="button" className={btn} disabled={disabled} onClick={() => onMove(1, 0)} aria-label="Down">
+      <button type="button" className={btn} disabled={disabled} {...press(1, 0)} aria-label="Down">
         <ChevronDown />
       </button>
       <div />
