@@ -1232,6 +1232,49 @@ button:disabled { opacity: .45; cursor: default; }
   animation: mascotShake .3s ease-in-out 5;
 }
 
+.mascot-cry .mascot-mouth {
+  top: 74%;
+  width: 16%;
+  height: 12%;
+  border: 0;
+  border-radius: 50%;
+  background: #2a2a2a;
+}
+
+.mascot-cry .mascot-eye {
+  height: 34%;
+  top: 24%;
+}
+
+.mascot-tear {
+  position: absolute;
+  width: 10%;
+  height: 16%;
+  border-radius: 40% 40% 50% 50%;
+  background: linear-gradient(180deg, #d7f6ff, #5ec4ea);
+  box-shadow: 0 0 6px rgba(140, 220, 255, .7);
+  z-index: 5;
+  transform: translateZ(26px);
+  animation: tearDrop .85s ease-in infinite;
+}
+
+.mascot-tear-a {
+  left: 36%;
+  top: 58%;
+}
+
+.mascot-tear-b {
+  left: 54%;
+  top: 62%;
+  animation-delay: .22s;
+}
+
+@keyframes tearDrop {
+  0% { opacity: 0; transform: translateY(0) translateZ(26px) scale(.7); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(14px) translateZ(26px) scale(1); }
+}
+
 .mascot-happy .mascot-mouth {
   width: 28%;
   height: 14%;

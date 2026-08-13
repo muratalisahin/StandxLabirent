@@ -102,11 +102,12 @@ function Mascot({
   mood = 'idle',
 }: {
   size?: 'sm' | 'md' | 'lg';
-  mood?: 'idle' | 'sad' | 'happy';
+  mood?: 'idle' | 'sad' | 'happy' | 'cry';
 }) {
+  const pose = mood === 'cry' ? 'sad' : mood;
   return (
     <div className={`mascot-scene mascot-scene-${size}`}>
-      <div className={`mascot mascot-${size} mascot-${mood}`} role="img" aria-label="StandX mascot">
+      <div className={`mascot mascot-${size} mascot-${pose} ${mood === 'cry' ? 'mascot-cry' : ''}`} role="img" aria-label="StandX mascot">
         <div className="mascot-highlight" />
         <div className="mascot-stalk" />
         <div className="mascot-leaf" />
@@ -118,6 +119,12 @@ function Mascot({
           <i className="mascot-glint mascot-glint-b" />
         </div>
         <div className="mascot-mouth" />
+        {mood === 'cry' && (
+          <>
+            <span className="mascot-tear mascot-tear-a" />
+            <span className="mascot-tear mascot-tear-b" />
+          </>
+        )}
         <div className="mascot-leg mascot-leg-left"><span className="mascot-foot" /></div>
         <div className="mascot-leg mascot-leg-right"><span className="mascot-foot" /></div>
         {mood === 'happy' && <div className="mascot-flower" />}
@@ -295,11 +302,11 @@ function HubScreen({
             </li>
             <li>
               <span className="howto-icon howto-ok"><Check className="icon-sm" /></span>
-              Answer the question correctly to open that door.
+              Each run picks random questions. Answer correctly to open that door.
             </li>
             <li>
               <span className="howto-icon howto-bad"><X className="icon-sm" /></span>
-              A wrong answer costs 10 points. You stay at that door and try again.
+              A wrong answer costs 10 points, even on the first question. That penalty comes off points you earn later.
             </li>
             <li>
               <span className="howto-icon howto-win"><Trophy className="icon-sm" /></span>
@@ -524,7 +531,7 @@ function GameScreen({
     const round = rounds[pendingDoor];
     if (answerIndex !== round.answerIndex) {
       playWrong();
-      setRunScore((score) => Math.max(0, score - POINTS_WRONG));
+      setRunScore((score) => score - POINTS_WRONG);
       setScorePulse('loss');
       window.setTimeout(() => setScorePulse('none'), 480);
       setOverlay('wrong');
@@ -553,7 +560,7 @@ function GameScreen({
         <TitleBlock compact />
         <div className={`score-pill ${scorePulse === 'loss' ? 'score-pill-loss' : ''} ${scorePulse === 'gain' ? 'score-pill-gain' : ''}`}>
           <Trophy className="icon-sm" />
-          <span>{runScore}</span>
+          <span>{Math.max(0, runScore)}</span>
         </div>
       </header>
 
@@ -652,6 +659,7 @@ function GameScreen({
           title="LOCKED"
           body={`Open ${nextDoorLabel} first. Doors must be cleared in order.`}
           buttonLabel="OK"
+          mascotMood="sad"
           onClose={() => setOverlay('none')}
         />
       )}
@@ -791,6 +799,7 @@ function FeedbackModal({
   bonus,
   buttonLabel,
   onClose,
+  mascotMood,
 }: {
   tone: 'wrong' | 'success';
   title: string;
@@ -799,11 +808,12 @@ function FeedbackModal({
   bonus?: string;
   buttonLabel: string;
   onClose: () => void;
+  mascotMood?: 'idle' | 'sad' | 'happy' | 'cry';
 }) {
   return (
     <ModalShell>
       <div className={`feedback-modal feedback-${tone}`}>
-        <Mascot size="md" mood={tone === 'wrong' ? 'sad' : 'happy'} />
+        <Mascot size="md" mood={mascotMood ?? (tone === 'wrong' ? 'cry' : 'happy')} />
         {subtitle && <p className="feedback-subtitle">{subtitle}</p>}
         <h3>{title}</h3>
         <p>{body}</p>

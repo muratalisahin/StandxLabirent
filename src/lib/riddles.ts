@@ -57,18 +57,6 @@ export const RIDDLES: Riddle[] = [
   },
 ];
 
-const DOOR_RIDDLE_KEYS = [
-  'SIP-1 (Block Trade)',
-  'SIP-2 (Position Yield)',
-  'SIP-3 (DUSD Native Yield',
-  'SIP-4 (Block Options)',
-  'SIP-5 let anyone',
-] as const;
-
-function findRiddle(key: string): Riddle {
-  return RIDDLES.find((riddle) => riddle.prompt.includes(key)) ?? RIDDLES[0];
-}
-
 export function shuffle<T>(arr: T[]): T[] {
   const copy = [...arr];
   for (let i = copy.length - 1; i > 0; i--) {
@@ -94,5 +82,5 @@ function toRound(riddle: Riddle): Round {
 }
 
 export function buildDoorRounds(doorCount: number): Round[] {
-  return Array.from({ length: doorCount }, (_, index) => toRound(findRiddle(DOOR_RIDDLE_KEYS[index])));
+  return shuffle(RIDDLES).slice(0, doorCount).map(toRound);
 }
