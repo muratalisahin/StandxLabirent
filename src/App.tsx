@@ -8,12 +8,15 @@ import {
   ChevronUp,
   Clock,
   DoorOpen,
+  Flame,
   Flower2,
   HelpCircle,
   LogOut,
   Medal,
   Menu,
+  Mountain,
   RefreshCw,
+  Sprout,
   Trophy,
   X,
 } from 'lucide-react';
@@ -21,47 +24,12 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 import { getGlobalScores, saveScore, useBestScore, type GlobalScore } from '@/lib/scores';
 import { buildDoorRounds, type Round } from '@/lib/riddles';
 import { playCorrect, playDoorOpen, playLocked, playWrong, unlockAudio } from '@/lib/sfx';
+import { DIFFICULTIES, MAZES, type Difficulty, type MazeLayout } from '@/lib/mazes';
 
 const DOOR_COUNT = 5;
 const POINTS_PER_DOOR = 50;
 const POINTS_WRONG = 10;
 const TIME_BONUS_PER_SECOND = 5;
-const MAZE = [
-  '###########################',
-  '#...........#.............#',
-  '#.###.###.#.#.#####.#####.#',
-  '#.........#...#...#.....#.#',
-  '###...#########.#.#...###.#',
-  '#.......#...#...#.....#...#',
-  '#.###.#.#.#.#.#.#####.#.#.#',
-  '#.#...#.....#.#.#.....#.#.#',
-  '#.###.###...#.#.#.#####.#.#',
-  '#...#.......#.#.#.........#',
-  '###.#####.#.###.#########.#',
-  '#...#.#...#.............#.#',
-  '#.###.#.#####...#####.###.#',
-  '#.#.....#...#.....#.......#',
-  '#.#######.#.#.###.#.#...###',
-  '#.....#...#.....#.#.#...#.#',
-  '#####.#.#######.#.#.#.###.#',
-  '#...#.........#...#.#.#...#',
-  '###.#...#####.#.###.#.###.#',
-  '#...#.......#.#...#.#.....#',
-  '#.#.#.#######.###.#.#...###',
-  '#.#.#.#...#...#...#.#.....#',
-  '#.###.#.#.#.###.###.#.###.#',
-  '#...........#.....#......X#',
-  '###########################',
-];
-const START = { row: 1, col: 1 };
-const EXIT = { row: 23, col: 25 };
-const DOORS = [
-  { row: 1, col: 8, label: 'SIP-1' },
-  { row: 12, col: 5, label: 'SIP-2' },
-  { row: 11, col: 20, label: 'SIP-3' },
-  { row: 3, col: 22, label: 'SIP-4' },
-  { row: 19, col: 10, label: 'SIP-5' },
-];
 
 type Phase = 'hub' | 'playing' | 'finished';
 type Overlay = 'none' | 'menu' | 'question' | 'wrong' | 'correct' | 'locked' | 'all-doors';
@@ -137,6 +105,7 @@ function AppInner() {
   const { user, loading, signInWithUsername, signOut } = useAuth();
   const [phase, setPhase] = useState<Phase>('hub');
   const [showSignIn, setShowSignIn] = useState(true);
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [lastRun, setLastRun] = useState<{ score: number; seconds: number } | null>(null);
 
   useEffect(() => {
@@ -175,6 +144,8 @@ function AppInner() {
   if (phase === 'playing') {
     return (
       <GameScreen
+        key={difficulty}
+        layout={MAZES[difficulty]}
         userId={user.id}
         username={user.user_metadata.user_name}
         onQuit={() => setPhase('hub')}
@@ -201,6 +172,8 @@ function AppInner() {
     <HubScreen
       userName={user.user_metadata.user_name}
       userId={user.id}
+      difficulty={difficulty}
+      onDifficulty={setDifficulty}
       onStart={() => setPhase('playing')}
       onSignOut={signOut}
       onSwitchAccount={() => setShowSignIn(true)}
@@ -264,17 +237,27 @@ function SignInScreen({
 function HubScreen({
   userName,
   userId,
+  difficulty,
+  onDifficulty,
   onStart,
   onSignOut,
   onSwitchAccount,
 }: {
   userName: string;
   userId: string;
+  difficulty: Difficulty;
+  onDifficulty: (value: Difficulty) => void;
   onStart: () => void;
   onSignOut: () => void;
   onSwitchAccount: () => void;
 }) {
   const { best, runs, loading } = useBestScore(userId);
+  const layout = MAZES[difficulty];
+  const difficultyIcons = {
+    easy: Sprout,
+    medium: Mountain,
+    hard: Flame,
+  } as const;
 
   return (
     <div className="app-shell hub-screen">
@@ -314,6 +297,26 @@ function HubScreen({
             </li>
           </ul>
 
+          <h3>Difficulty</h3>
+          <div className="difficulty-picker">
+            {DIFFICULTIES.map((level) => {
+              const Icon = difficultyIcons[level];
+              const item = MAZES[level];
+              return (
+                <button
+                  key={level}
+                  type="button"
+                  className={`difficulty-btn difficulty-${level} ${difficulty === level ? 'is-active' : ''}`}
+                  onClick={() => onDifficulty(level)}
+                >
+                  <Icon className="icon-sm" />
+                  <strong>{item.name}</strong>
+                  <span>{item.blurb}</span>
+                </button>
+              );
+            })}
+          </div>
+
           <h3>Controls</h3>
           <div className="control-keys">
             <span>W</span><span>A</span><span>S</span><span>D</span>
@@ -341,13 +344,13 @@ function HubScreen({
           </div>
 
           <button type="button" className="btn-primary btn-start" onClick={onStart}>
-            Start Game
+            Start {layout.name}
           </button>
         </section>
 
         <section className="panel preview-panel">
           <div className="preview-frame">
-            <MiniMazePreview />
+            <MiniMazePreview maze={layout.maze} />
           </div>
           <Leaderboard />
         </section>
@@ -356,11 +359,11 @@ function HubScreen({
   );
 }
 
-function MiniMazePreview() {
+function MiniMazePreview({ maze }: { maze: string[] }) {
   return (
     <div className="mini-maze">
-      {MAZE.slice(0, 12).map((row, rowIndex) => (
-        <div key={rowIndex} className="mini-maze-row" style={{ gridTemplateColumns: `repeat(${MAZE[0].length}, 1fr)` }}>
+      {maze.slice(0, 14).map((row, rowIndex) => (
+        <div key={rowIndex} className="mini-maze-row" style={{ gridTemplateColumns: `repeat(${maze[0].length}, 1fr)` }}>
           {[...row].map((cell, colIndex) => (
             <div key={colIndex} className={`mini-cell ${cell === '#' ? 'mini-wall' : 'mini-floor'}`} />
           ))}
@@ -422,18 +425,21 @@ function Leaderboard() {
 }
 
 function GameScreen({
+  layout,
   userId,
   username,
   onQuit,
   onFinish,
 }: {
+  layout: MazeLayout;
   userId: string;
   username: string;
   onQuit: () => void;
   onFinish: (result: { score: number; seconds: number }) => void;
 }) {
+  const { maze, start, exit, doors, name: difficultyName, id: difficultyId } = layout;
   const rounds = useMemo(() => buildDoorRounds(DOOR_COUNT), []);
-  const [position, setPosition] = useState(START);
+  const [position, setPosition] = useState(start);
   const [openedDoors, setOpenedDoors] = useState<number[]>([]);
   const [pendingDoor, setPendingDoor] = useState<number | null>(null);
   const [overlay, setOverlay] = useState<Overlay>('none');
@@ -445,7 +451,7 @@ function GameScreen({
   const savedRun = useRef(false);
 
   const nextDoorIndex = openedDoors.length;
-  const nextDoorLabel = DOORS[nextDoorIndex]?.label ?? 'EXIT';
+  const nextDoorLabel = doors[nextDoorIndex]?.label ?? 'EXIT';
   const blocked = overlay === 'question' || overlay === 'wrong' || overlay === 'correct' || overlay === 'menu' || overlay === 'locked';
 
   useEffect(() => {
@@ -477,10 +483,10 @@ function GameScreen({
     (rowDelta: number, colDelta: number) => {
       if (blocked) return;
       const next = { row: position.row + rowDelta, col: position.col + colDelta };
-      const cell = MAZE[next.row]?.[next.col];
+      const cell = maze[next.row]?.[next.col];
       if (!cell || cell === '#') return;
 
-      const doorIndex = DOORS.findIndex((door) => door.row === next.row && door.col === next.col);
+      const doorIndex = doors.findIndex((door) => door.row === next.row && door.col === next.col);
       if (doorIndex >= 0 && !openedDoors.includes(doorIndex)) {
         if (doorIndex !== nextDoorIndex) {
           playLocked();
@@ -494,11 +500,11 @@ function GameScreen({
       }
 
       setPosition(next);
-      if ((cell === 'X' || (next.row === EXIT.row && next.col === EXIT.col)) && exitUnlocked) {
+      if ((cell === 'X' || (next.row === exit.row && next.col === exit.col)) && exitUnlocked) {
         void finishRun();
       }
     },
-    [blocked, exitUnlocked, finishRun, nextDoorIndex, openedDoors, position.col, position.row],
+    [blocked, doors, exit.col, exit.row, exitUnlocked, finishRun, maze, nextDoorIndex, openedDoors, position.col, position.row],
   );
 
   useEffect(() => {
@@ -567,18 +573,19 @@ function GameScreen({
       <div className="game-subbar">
         <div className="game-timer"><Clock className="icon-sm" /> {formatTime(seconds)}</div>
         <div className="target-door">{nextDoorLabel}</div>
+        <div className={`difficulty-chip difficulty-${difficultyId}`}>{difficultyName}</div>
         <div>{openedDoors.length}/{DOOR_COUNT}</div>
       </div>
 
       <div className="game-stage">
-        <div className="maze-scene">
+        <div className={`maze-scene maze-scene-${difficultyId}`}>
         <div
           className="maze-board"
-          style={{ gridTemplateColumns: `repeat(${MAZE[0].length}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${maze[0].length}, minmax(0, 1fr))` }}
         >
-          {MAZE.flatMap((row, rowIndex) =>
+          {maze.flatMap((row, rowIndex) =>
             [...row].map((cell, colIndex) => {
-              const doorIndex = DOORS.findIndex((door) => door.row === rowIndex && door.col === colIndex);
+              const doorIndex = doors.findIndex((door) => door.row === rowIndex && door.col === colIndex);
               const isPlayer = position.row === rowIndex && position.col === colIndex;
               const isExit = cell === 'X';
               const opened = doorIndex >= 0 && doorIndex < nextDoorIndex;
@@ -608,7 +615,7 @@ function GameScreen({
                   {decor === 10 && <span className="maze-puddle" />}
                   {decor === 13 && <span className="maze-vine" />}
                   {decor === 16 && <span className="maze-rune" />}
-                  {doorIndex >= 0 && <DoorTile label={DOORS[doorIndex].label} opened={opened} locked={locked} current={current} />}
+                  {doorIndex >= 0 && <DoorTile label={doors[doorIndex].label} opened={opened} locked={locked} current={current} />}
                   {isExit && (
                     <div className={`exit-gate ${exitUnlocked ? 'exit-open' : 'exit-locked'}`}>
                       <Flower2 className="icon-sm" />
@@ -647,7 +654,7 @@ function GameScreen({
 
       {overlay === 'question' && pendingDoor !== null && currentRound && (
         <QuestionModal
-          door={DOORS[pendingDoor].label}
+          door={doors[pendingDoor].label}
           round={currentRound}
           onAnswer={answerDoor}
         />
