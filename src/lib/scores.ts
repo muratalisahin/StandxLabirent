@@ -100,32 +100,45 @@ export function useBestScore(playerId: string | undefined, difficulty?: Difficul
   return state;
 }
 
-export async function getGlobalScores(difficulty?: Difficulty) {
+async function fetchScoreRows(limit: number) {
   const full = await supabase
     .from('maze_scores')
     .select('id, name, score, created, difficulty, completion_time_seconds')
     .order('score', { ascending: false })
     .order('created', { ascending: true })
-    .limit(40);
+    .limit(limit);
 
-  const rows = full.error
-    ? await (async () => {
-        const fallback = await supabase
-          .from('maze_scores')
-          .select('id, name, score, created')
-          .order('score', { ascending: false })
-          .order('created', { ascending: true })
-          .limit(40);
-        if (fallback.error) throw fallback.error;
-        return (fallback.data ?? []) as MazeScoreRow[];
-      })()
-    : ((full.data ?? []) as MazeScoreRow[]);
+  if (!full.error) return (full.data ?? []) as MazeScoreRow[];
 
+  const fallback = await supabase
+    .from('maze_scores')
+    .select('id, name, score, created')
+    .order('score', { ascending: false })
+    .order('created', { ascending: true })
+    .limit(limit);
+  if (fallback.error) throw fallback.error;
+  return (fallback.data ?? []) as MazeScoreRow[];
+}
+
+function boardForDifficulty(rows: MazeScoreRow[], difficulty?: Difficulty) {
   return rows
     .map(mapRow)
     .filter((row) => !difficulty || row.difficulty === difficulty)
-    .sort((a, b) => b.score - a.score || a.completion_time_seconds - b.completion_time_seconds)
-    .slice(0, 10);
+    .sort((a, b) => b.score - a.score || a.completion_time_seconds - b.completion_time_seconds);
+}
+
+export async function getGlobalScores(difficulty?: Difficulty) {
+  return boardForDifficulty(await fetchScoreRows(80), difficulty).slice(0, 10);
+}
+
+export async function getRunRank(run: { score: number; seconds: number; difficulty: Difficulty }) {
+  const board = boardForDifficulty(await fetchScoreRows(200), run.difficulty);
+  const better = board.filter(
+    (row) =>
+      row.score > run.score ||
+      (row.score === run.score && row.completion_time_seconds < run.seconds),
+  ).length;
+  return better + 1;
 }
 
 export async function saveScore(

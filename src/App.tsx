@@ -21,7 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/lib/auth';
-import { getGlobalScores, saveScore, useBestScore, type GlobalScore } from '@/lib/scores';
+import { getGlobalScores, getRunRank, saveScore, useBestScore, type GlobalScore } from '@/lib/scores';
 import { buildDoorRounds, type Round } from '@/lib/riddles';
 import { playCorrect, playDoorOpen, playLocked, playWrong, unlockAudio } from '@/lib/sfx';
 import { DIFFICULTIES, MAZES, type Difficulty, type MazeDoor, type MazeLayout } from '@/lib/mazes';
@@ -754,11 +754,12 @@ function GameScreen({
         />
       )}
 
-      {overlay === 'wrong' && (
+      {overlay === 'wrong' && currentRound && (
         <FeedbackModal
           tone="wrong"
           title="FALSE"
-          body="No. Stay at this door and try again."
+          body="Stay at this door and try again."
+          learn={`Answer: ${currentRound.options[currentRound.answerIndex]}`}
           bonus={`-${POINTS_WRONG} POINTS`}
           buttonLabel="OK"
           mascotMood="sad"
@@ -781,10 +782,8 @@ function GameScreen({
       {overlay === 'all-doors' && (
         <FeedbackModal
           tone="success"
-          title="COMPLETED!"
-          subtitle="CONGRATULATIONS!"
-          body="You passed all SIP doors!"
-          bonus={`+${DOOR_COUNT * POINTS_PER_DOOR} POINTS`}
+          title="EXIT IS OPEN"
+          body="Find the glowing flower and leave."
           buttonLabel="GO TO EXIT"
           mascotMood="nod"
           onClose={() => {
@@ -1027,6 +1026,7 @@ function FeedbackModal({
   title,
   subtitle,
   body,
+  learn,
   bonus,
   buttonLabel,
   onClose,
@@ -1036,6 +1036,7 @@ function FeedbackModal({
   title: string;
   subtitle?: string;
   body: string;
+  learn?: string;
   bonus?: string;
   buttonLabel: string;
   onClose: () => void;
@@ -1048,6 +1049,7 @@ function FeedbackModal({
         {subtitle && <p className="feedback-subtitle">{subtitle}</p>}
         <h3>{title}</h3>
         <p>{body}</p>
+        {learn && <p className="feedback-learn">{learn}</p>}
         {bonus && <p className="feedback-bonus">{bonus}</p>}
         <button type="button" className="btn-primary" onClick={onClose}>{buttonLabel}</button>
       </div>
@@ -1067,6 +1069,20 @@ function FinishedScreen({
   onPlayAgain: () => void;
 }) {
   const { best, loading } = useBestScore(userId, lastRun?.difficulty);
+  const [rank, setRank] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!lastRun) return;
+    let active = true;
+    void getRunRank(lastRun).then((place) => {
+      if (active) setRank(place);
+    }).catch(() => {
+      if (active) setRank(null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [lastRun]);
 
   return (
     <div className="app-shell center-screen finished-screen">
@@ -1077,8 +1093,8 @@ function FinishedScreen({
         <h2>Out cold</h2>
         <p>The maze is cleared. Stander took the pillow.</p>
         {lastRun && (
-          <div className={`difficulty-chip difficulty-${lastRun.difficulty}`} style={{ margin: '10px auto 0' }}>
-            {MAZES[lastRun.difficulty].name}
+          <div className="finish-place">
+            {MAZES[lastRun.difficulty].name} board{rank ? ` · #${rank}` : ''}
           </div>
         )}
         {lastRun && (

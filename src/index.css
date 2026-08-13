@@ -1926,6 +1926,30 @@ button:disabled { opacity: .45; cursor: default; }
   color: #ff8a8a;
 }
 
+.feedback-learn {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(87, 232, 118, .1);
+  border: 1px solid rgba(87, 232, 118, .28);
+  color: var(--green);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.finish-place {
+  margin: 12px auto 0;
+  padding: 8px 12px;
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(255, 209, 102, .12);
+  border: 1px solid rgba(255, 209, 102, .3);
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
 .finished-time {
   display: flex;
   align-items: center;
