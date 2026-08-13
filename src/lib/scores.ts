@@ -26,19 +26,33 @@ type MazeScoreRow = {
   completion_time_seconds?: number | null;
 };
 
+function isDifficulty(value: string | null | undefined): value is Difficulty {
+  return value === 'easy' || value === 'medium' || value === 'hard';
+}
+
+function parsePackedName(raw: string): { username: string; difficulty?: Difficulty; seconds?: number } {
+  const parts = raw.split('~');
+  if (parts.length >= 3 && isDifficulty(parts[1])) {
+    return { username: parts[0], difficulty: parts[1], seconds: Number(parts[2]) || 0 };
+  }
+  return { username: raw };
+}
+
 function mapRow(row: MazeScoreRow): GlobalScore {
-  const difficulty: Difficulty =
-    row.difficulty === 'easy' || row.difficulty === 'hard' || row.difficulty === 'medium'
-      ? row.difficulty
-      : 'medium';
+  const packed = parsePackedName(row.name);
+  const difficulty: Difficulty = isDifficulty(row.difficulty) ? row.difficulty : packed.difficulty ?? 'medium';
   return {
     id: row.id,
-    x_username: row.name,
+    x_username: packed.username,
     score: row.score,
     difficulty,
-    completion_time_seconds: row.completion_time_seconds ?? 0,
+    completion_time_seconds: row.completion_time_seconds || packed.seconds || 0,
     created_at: row.created,
   };
+}
+
+function packedName(username: string, difficulty: Difficulty, seconds: number) {
+  return `${username}~${difficulty}~${seconds}`;
 }
 
 export function useBestScore(playerId: string | undefined, difficulty?: Difficulty) {
@@ -54,30 +68,28 @@ export function useBestScore(playerId: string | undefined, difficulty?: Difficul
     setState((current) => ({ ...current, loading: true }));
 
     (async () => {
-      let scoreQuery = supabase
+      const full = await supabase
         .from('maze_scores')
-        .select('score')
-        .ilike('name', playerId)
+        .select('name, score, difficulty, completion_time_seconds')
         .order('score', { ascending: false })
-        .limit(1);
-      let countQuery = supabase
-        .from('maze_scores')
-        .select('id', { count: 'exact', head: true })
-        .ilike('name', playerId);
-      if (difficulty) {
-        scoreQuery = scoreQuery.eq('difficulty', difficulty);
-        countQuery = countQuery.eq('difficulty', difficulty);
-      }
+        .limit(100);
 
-      const { data, error } = await scoreQuery.maybeSingle();
-      const { count, error: countError } = await countQuery;
+      const payload = full.error
+        ? await supabase.from('maze_scores').select('name, score').order('score', { ascending: false }).limit(100)
+        : full;
 
       if (!active) return;
-      if (error || countError) {
+      if (payload.error) {
         setState({ best: null, runs: null, loading: false });
         return;
       }
-      setState({ best: data?.score ?? null, runs: count ?? 0, loading: false });
+
+      const rows = ((payload.data ?? []) as MazeScoreRow[])
+        .map(mapRow)
+        .filter((row) => row.x_username.toLowerCase() === playerId.toLowerCase())
+        .filter((row) => !difficulty || row.difficulty === difficulty)
+        .sort((a, b) => b.score - a.score);
+      setState({ best: rows[0]?.score ?? null, runs: rows.length, loading: false });
     })();
 
     return () => {
@@ -89,29 +101,31 @@ export function useBestScore(playerId: string | undefined, difficulty?: Difficul
 }
 
 export async function getGlobalScores(difficulty?: Difficulty) {
-  const full = supabase
+  const full = await supabase
     .from('maze_scores')
     .select('id, name, score, created, difficulty, completion_time_seconds')
     .order('score', { ascending: false })
-    .order('completion_time_seconds', { ascending: true })
-    .limit(10);
-
-  const query = difficulty ? full.eq('difficulty', difficulty) : full;
-  const { data, error } = await query;
-
-  if (!error) {
-    return ((data ?? []) as MazeScoreRow[]).map(mapRow);
-  }
-
-  const fallback = supabase
-    .from('maze_scores')
-    .select('id, name, score, created')
-    .order('score', { ascending: false })
     .order('created', { ascending: true })
-    .limit(10);
-  const { data: oldData, error: oldError } = await fallback;
-  if (oldError) throw oldError;
-  return ((oldData ?? []) as MazeScoreRow[]).map(mapRow);
+    .limit(40);
+
+  const rows = full.error
+    ? await (async () => {
+        const fallback = await supabase
+          .from('maze_scores')
+          .select('id, name, score, created')
+          .order('score', { ascending: false })
+          .order('created', { ascending: true })
+          .limit(40);
+        if (fallback.error) throw fallback.error;
+        return (fallback.data ?? []) as MazeScoreRow[];
+      })()
+    : ((full.data ?? []) as MazeScoreRow[]);
+
+  return rows
+    .map(mapRow)
+    .filter((row) => !difficulty || row.difficulty === difficulty)
+    .sort((a, b) => b.score - a.score || a.completion_time_seconds - b.completion_time_seconds)
+    .slice(0, 10);
 }
 
 export async function saveScore(
@@ -133,7 +147,7 @@ export async function saveScore(
   if (!full.error) return;
 
   const { error } = await supabase.from('maze_scores').insert({
-    name: username,
+    name: packedName(username, row.difficulty, row.completion_time_seconds),
     score: row.score,
   });
   if (error) throw error;

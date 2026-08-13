@@ -422,11 +422,17 @@ function Leaderboard({ difficulty }: { difficulty: Difficulty }) {
         <p className="leaderboard-empty">Be the first on the {MAZES[difficulty].name} board.</p>
       ) : (
         <div className="leaderboard-list">
+          <div className="leaderboard-row leaderboard-labels">
+            <span className="rank">#</span>
+            <span className="name">Player</span>
+            <span className="time">Time</span>
+            <span className="score">Score</span>
+          </div>
           {scores.map((entry, index) => (
             <div key={entry.id} className="leaderboard-row">
               <span className={`rank ${index < 3 ? 'rank-top' : ''}`}>{index + 1}</span>
               <span className="name">@{entry.x_username}</span>
-              <span className="time">{entry.completion_time_seconds ? formatTime(entry.completion_time_seconds) : '—'}</span>
+              <span className="time">{formatTime(entry.completion_time_seconds)}</span>
               <span className="score">{entry.score}</span>
             </div>
           ))}
@@ -453,6 +459,7 @@ function GameScreen({
   const rounds = useMemo(() => buildDoorRounds(DOOR_COUNT), []);
   const [position, setPosition] = useState(start);
   const [facing, setFacing] = useState<Facing>(2);
+  const [visited, setVisited] = useState<Set<string>>(() => new Set([`${start.row},${start.col}`]));
   const [openedDoors, setOpenedDoors] = useState<number[]>([]);
   const [pendingDoor, setPendingDoor] = useState<number | null>(null);
   const [overlay, setOverlay] = useState<Overlay>('none');
@@ -516,12 +523,14 @@ function GameScreen({
           setOverlay('locked');
           return;
         }
+        setVisited((cells) => new Set(cells).add(`${next.row},${next.col}`));
         setPosition(next);
         setPendingDoor(doorIndex);
         setOverlay('question');
         return;
       }
 
+      setVisited((cells) => new Set(cells).add(`${next.row},${next.col}`));
       setPosition(next);
       if ((cell === 'X' || (next.row === exit.row && next.col === exit.col)) && exitUnlocked) {
         void finishRun();
@@ -607,6 +616,8 @@ function GameScreen({
         <div className={`score-pill ${scorePulse === 'loss' ? 'score-pill-loss' : ''} ${scorePulse === 'gain' ? 'score-pill-gain' : ''}`}>
           <Trophy className="icon-sm" />
           <span>{Math.max(0, runScore)}</span>
+          <Clock className="icon-sm" />
+          <span>{formatTime(seconds)}</span>
         </div>
       </header>
 
@@ -619,6 +630,7 @@ function GameScreen({
 
       <div className="game-stage">
         <div className="maze-viewport">
+          <div className="maze-compass">Facing {['North', 'East', 'South', 'West'][facing]}</div>
           <div className="maze-horizon" />
           <div
             className="maze-world"
@@ -673,6 +685,9 @@ function GameScreen({
             position={position}
             exit={exit}
             nextDoorIndex={nextDoorIndex}
+            facing={facing}
+            visited={visited}
+            expanded={difficultyId === 'hard'}
           />
         </div>
 
@@ -793,15 +808,22 @@ function Minimap({
   position,
   exit,
   nextDoorIndex,
+  facing,
+  visited,
+  expanded,
 }: {
   maze: string[];
   doors: MazeDoor[];
   position: { row: number; col: number };
   exit: { row: number; col: number };
   nextDoorIndex: number;
+  facing: Facing;
+  visited: Set<string>;
+  expanded?: boolean;
 }) {
   return (
-    <div className="minimap" aria-hidden="true">
+    <div className={`minimap ${expanded ? 'minimap-expanded' : ''}`} aria-hidden="true">
+      <div className="minimap-compass">{['N', 'E', 'S', 'W'][facing]}</div>
       {maze.map((row, rowIndex) => (
         <div key={rowIndex} className="minimap-row" style={{ gridTemplateColumns: `repeat(${maze[0].length}, 1fr)` }}>
           {[...row].map((cell, colIndex) => {
@@ -809,10 +831,11 @@ function Minimap({
             const here = position.row === rowIndex && position.col === colIndex;
             const isExit = rowIndex === exit.row && colIndex === exit.col;
             const next = doorIndex === nextDoorIndex;
+            const seen = visited.has(`${rowIndex},${colIndex}`);
             return (
               <i
                 key={colIndex}
-                className={`minimap-cell ${cell === '#' ? 'is-wall' : 'is-floor'} ${here ? 'is-player' : ''} ${isExit ? 'is-exit' : ''} ${next ? 'is-door' : ''}`}
+                className={`minimap-cell ${cell === '#' ? 'is-wall' : 'is-floor'} ${seen ? 'is-seen' : ''} ${here ? 'is-player' : ''} ${isExit ? 'is-exit' : ''} ${next ? 'is-door' : ''}`}
               />
             );
           })}

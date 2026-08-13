@@ -526,6 +526,16 @@ button:disabled { opacity: .45; cursor: default; }
   border: 1px solid var(--panel-border);
 }
 
+.leaderboard-labels {
+  background: transparent;
+  border-color: transparent;
+  padding-bottom: 2px;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
 .rank { color: var(--text-dim); font-family: 'DM Mono', monospace; }
 .rank-top { color: var(--gold); }
 .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -633,6 +643,15 @@ button:disabled { opacity: .45; cursor: default; }
   color: var(--green);
   font-family: 'DM Mono', monospace;
   font-weight: 700;
+}
+
+.score-pill .icon-sm:nth-of-type(2) {
+  margin-left: 4px;
+  color: var(--gold);
+}
+
+.score-pill span:last-child {
+  color: var(--gold);
 }
 
 .score-pill-loss {
@@ -744,6 +763,21 @@ button:disabled { opacity: .45; cursor: default; }
   pointer-events: none;
 }
 
+.maze-compass {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 7;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .55);
+  border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
 .minimap {
   position: absolute;
   top: 10px;
@@ -755,6 +789,19 @@ button:disabled { opacity: .45; cursor: default; }
   background: rgba(0, 0, 0, .55);
   border: 1px solid rgba(255, 255, 255, .12);
   backdrop-filter: blur(8px);
+}
+
+.minimap-expanded {
+  width: min(52vw, 196px);
+}
+
+.minimap-compass {
+  text-align: center;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  margin-bottom: 4px;
 }
 
 .minimap-row {
@@ -769,7 +816,8 @@ button:disabled { opacity: .45; cursor: default; }
 }
 
 .minimap-cell.is-wall { background: #5b635e; }
-.minimap-cell.is-floor { background: #234a28; }
+.minimap-cell.is-floor { background: #101810; }
+.minimap-cell.is-seen.is-floor { background: #2f8f45; }
 .minimap-cell.is-player { background: #57e876; }
 .minimap-cell.is-exit { background: #ffd166; }
 .minimap-cell.is-door { background: #e08a4a; }
