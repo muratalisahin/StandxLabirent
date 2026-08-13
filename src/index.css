@@ -700,9 +700,18 @@ button:disabled { opacity: .45; cursor: default; }
   border-radius: 18px;
   border: 3px solid #4a524e;
   background: #070c08;
+  box-shadow: 0 24px 40px rgba(0, 0, 0, .55);
+}
+
+.maze-world-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  isolation: isolate;
   perspective: 460px;
   perspective-origin: 50% 92%;
-  box-shadow: 0 24px 40px rgba(0, 0, 0, .55);
+  pointer-events: none;
 }
 
 .maze-horizon {
@@ -758,6 +767,7 @@ button:disabled { opacity: .45; cursor: default; }
   left: 50%;
   bottom: 4%;
   z-index: 6;
+  isolation: isolate;
   transform: translateX(-50%);
   filter: drop-shadow(0 10px 12px rgba(0, 0, 0, .55));
   pointer-events: none;
@@ -1110,6 +1120,22 @@ button:disabled { opacity: .45; cursor: default; }
   display: grid;
   place-items: end center;
   transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.explorer-cell.is-depth-1 .maze-door {
+  inset: 22% 10% 6%;
+}
+
+.explorer-cell.is-depth-1 .door-frame {
+  height: 72%;
+}
+
+.explorer-cell.is-here .maze-door,
+.explorer-cell.is-depth-0 .maze-door,
+.explorer-cell.is-here .exit-gate,
+.explorer-cell.is-depth-0 .exit-gate {
+  display: none;
 }
 
 .door-tag {

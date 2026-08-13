@@ -654,49 +654,54 @@ function GameScreen({
         <div className="maze-viewport">
           <div className="maze-compass">Facing {['North', 'East', 'South', 'West'][facing]}</div>
           <div className="maze-horizon" />
-          <div
-            className="maze-world"
-            style={{ gridTemplateColumns: `repeat(${VIEW_DEPTH}, var(--cell-size))` }}
-          >
-            {explorerCells.map((view) => {
-              const cell = maze[view.row]?.[view.col];
-              const isWall = !cell || cell === '#';
-              const doorIndex = doors.findIndex((door) => door.row === view.row && door.col === view.col);
-              const isExit = cell === 'X';
-              const opened = doorIndex >= 0 && doorIndex < nextDoorIndex;
-              const locked = doorIndex > nextDoorIndex;
-              const current = doorIndex === nextDoorIndex;
-              const isHere = view.depth === 0 && view.side === 0;
-              const floorVariant = ((view.col ?? 0) + (view.row ?? 0) * 3) % 4;
-              const wallVariant = ((view.col ?? 0) * 2 + (view.row ?? 0)) % 3;
-              const far = view.depth >= 7 ? 'is-horizon' : view.depth >= 5 ? 'is-far' : '';
-              return (
-                <div
-                  key={view.key}
-                  className={`maze-cell explorer-cell ${isWall ? `maze-wall maze-wall-${wallVariant}` : `maze-floor maze-floor-${floorVariant}`} ${isExit ? 'maze-exit' : ''} ${isHere ? 'is-here' : ''} ${far}`}
-                >
-                  {isWall && (
-                    <>
-                      <span className="wall-top" />
-                      <span className="wall-front" />
-                      <span className="wall-side" />
-                      <span className="wall-left" />
-                      {wallVariant === 0 && <span className="wall-lichen" />}
-                      {wallVariant === 2 && <span className="wall-crack" />}
-                    </>
-                  )}
-                  {doorIndex >= 0 && <DoorTile label={doors[doorIndex].label} opened={opened} locked={locked} current={current} />}
-                  {isExit && (
-                    <div className={`exit-gate ${exitUnlocked ? 'exit-open' : 'exit-locked'}`}>
-                      <Flower2 className="icon-sm" />
-                      <span>EXIT</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="maze-world-layer">
+            <div
+              className="maze-world"
+              style={{ gridTemplateColumns: `repeat(${VIEW_DEPTH}, var(--cell-size))` }}
+            >
+              {explorerCells.map((view) => {
+                const cell = maze[view.row]?.[view.col];
+                const isWall = !cell || cell === '#';
+                const doorIndex = doors.findIndex((door) => door.row === view.row && door.col === view.col);
+                const isExit = cell === 'X';
+                const opened = doorIndex >= 0 && doorIndex < nextDoorIndex;
+                const locked = doorIndex > nextDoorIndex;
+                const current = doorIndex === nextDoorIndex;
+                const isHere = view.depth === 0 && view.side === 0;
+                const floorVariant = ((view.col ?? 0) + (view.row ?? 0) * 3) % 4;
+                const wallVariant = ((view.col ?? 0) * 2 + (view.row ?? 0)) % 3;
+                const far = view.depth >= 7 ? 'is-horizon' : view.depth >= 5 ? 'is-far' : '';
+                const close = view.depth <= 1 ? `is-close is-depth-${view.depth}` : '';
+                return (
+                  <div
+                    key={view.key}
+                    className={`maze-cell explorer-cell ${isWall ? `maze-wall maze-wall-${wallVariant}` : `maze-floor maze-floor-${floorVariant}`} ${isExit ? 'maze-exit' : ''} ${isHere ? 'is-here' : ''} ${far} ${close}`}
+                  >
+                    {isWall && (
+                      <>
+                        <span className="wall-top" />
+                        <span className="wall-front" />
+                        <span className="wall-side" />
+                        <span className="wall-left" />
+                        {wallVariant === 0 && <span className="wall-lichen" />}
+                        {wallVariant === 2 && <span className="wall-crack" />}
+                      </>
+                    )}
+                    {doorIndex >= 0 && view.depth > 0 && (
+                      <DoorTile label={doors[doorIndex].label} opened={opened} locked={locked} current={current} />
+                    )}
+                    {isExit && view.depth > 0 && (
+                      <div className={`exit-gate ${exitUnlocked ? 'exit-open' : 'exit-locked'}`}>
+                        <Flower2 className="icon-sm" />
+                        <span>EXIT</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="maze-fog" />
           </div>
-          <div className="maze-fog" />
           <MazeSwipeLayer disabled={blocked} onMove={move} />
           <div className="maze-you">
             <Mascot size="md" mood="idle" />
