@@ -831,11 +831,12 @@ function Minimap({
             const here = position.row === rowIndex && position.col === colIndex;
             const isExit = rowIndex === exit.row && colIndex === exit.col;
             const next = doorIndex === nextDoorIndex;
+            const anyDoor = doorIndex >= 0;
             const seen = visited.has(`${rowIndex},${colIndex}`);
             return (
               <i
                 key={colIndex}
-                className={`minimap-cell ${cell === '#' ? 'is-wall' : 'is-floor'} ${seen ? 'is-seen' : ''} ${here ? 'is-player' : ''} ${isExit ? 'is-exit' : ''} ${next ? 'is-door' : ''}`}
+                className={`minimap-cell ${cell === '#' ? 'is-wall' : 'is-floor'} ${seen ? 'is-seen' : ''} ${here ? 'is-player' : ''} ${isExit ? 'is-exit' : ''} ${anyDoor ? 'is-door' : ''} ${next ? 'is-next' : ''}`}
               />
             );
           })}

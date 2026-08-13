@@ -815,12 +815,13 @@ button:disabled { opacity: .45; cursor: default; }
   border-radius: 1px;
 }
 
-.minimap-cell.is-wall { background: #5b635e; }
-.minimap-cell.is-floor { background: #101810; }
-.minimap-cell.is-seen.is-floor { background: #2f8f45; }
-.minimap-cell.is-player { background: #57e876; }
-.minimap-cell.is-exit { background: #ffd166; }
-.minimap-cell.is-door { background: #e08a4a; }
+.minimap-cell.is-wall { background: #8a928c; }
+.minimap-cell.is-floor { background: #3d5c3a; }
+.minimap-cell.is-seen.is-floor { background: #cbb57a; }
+.minimap-cell.is-door { background: #d4894a; }
+.minimap-cell.is-next { background: #ffb347; box-shadow: 0 0 0 1px #fff3; }
+.minimap-cell.is-exit { background: #f0c14a; }
+.minimap-cell.is-player { background: #f4fff6; box-shadow: 0 0 0 1px #57e876; }
 
 .maze-cell {
   position: relative;
