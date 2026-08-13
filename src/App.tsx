@@ -491,6 +491,7 @@ function GameScreen({
   const [seconds, setSeconds] = useState(0);
   const [runScore, setRunScore] = useState(0);
   const [scorePulse, setScorePulse] = useState<'none' | 'loss' | 'gain'>('none');
+  const [doorMisses, setDoorMisses] = useState(0);
   const startTimeRef = useRef(Date.now());
   const savedRun = useRef(false);
 
@@ -549,6 +550,7 @@ function GameScreen({
         }
         setPosition(next);
         setPendingDoor(doorIndex);
+        setDoorMisses(0);
         setOverlay('question');
         return;
       }
@@ -591,6 +593,7 @@ function GameScreen({
     const round = rounds[pendingDoor];
     if (answerIndex !== round.answerIndex) {
       playWrong();
+      setDoorMisses((count) => count + 1);
       setRunScore((score) => score - POINTS_WRONG);
       setScorePulse('loss');
       window.setTimeout(() => setScorePulse('none'), 480);
@@ -600,6 +603,7 @@ function GameScreen({
 
     const doorIndex = pendingDoor;
     setOpenedDoors((doors) => [...doors, doorIndex]);
+    setDoorMisses(0);
     setRunScore((score) => score + POINTS_PER_DOOR);
     setScorePulse('gain');
     window.setTimeout(() => setScorePulse('none'), 480);
@@ -758,9 +762,9 @@ function GameScreen({
         <FeedbackModal
           tone="wrong"
           title="FALSE"
-          body="Stay at this door and try again."
-          learn={`Answer: ${currentRound.options[currentRound.answerIndex]}`}
-          bonus={`-${POINTS_WRONG} POINTS`}
+          body={doorMisses >= 2 ? 'Stay at this door and try again.' : 'Wrong. Try one more time.'}
+          learn={doorMisses >= 2 ? `Answer: ${currentRound.options[currentRound.answerIndex]}` : undefined}
+          bonus={`-${doorMisses * POINTS_WRONG} POINTS`}
           buttonLabel="OK"
           mascotMood="sad"
           onClose={() => setOverlay(pendingDoor !== null ? 'question' : 'none')}
