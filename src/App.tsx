@@ -24,12 +24,19 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 import { getGlobalScores, saveScore, useBestScore, type GlobalScore } from '@/lib/scores';
 import { buildDoorRounds, type Round } from '@/lib/riddles';
 import { playCorrect, playDoorOpen, playLocked, playWrong, unlockAudio } from '@/lib/sfx';
-import { DIFFICULTIES, MAZES, type Difficulty, type MazeLayout } from '@/lib/mazes';
+import { DIFFICULTIES, MAZES, type Difficulty, type MazeDoor, type MazeLayout } from '@/lib/mazes';
 
 const DOOR_COUNT = 5;
 const POINTS_PER_DOOR = 50;
 const POINTS_WRONG = 10;
 const TIME_BONUS_PER_SECOND = 5;
+const VIEW_DEPTH = 11;
+const VIEW_HALF = 5;
+const FORWARD: Array<[number, number]> = [[-1, 0], [0, 1], [1, 0], [0, -1]];
+const RIGHT: Array<[number, number]> = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+
+type Facing = 0 | 1 | 2 | 3;
+type LastRun = { score: number; seconds: number; difficulty: Difficulty };
 
 type Phase = 'hub' | 'playing' | 'finished';
 type Overlay = 'none' | 'menu' | 'question' | 'wrong' | 'correct' | 'locked' | 'all-doors';
@@ -106,7 +113,7 @@ function AppInner() {
   const [phase, setPhase] = useState<Phase>('hub');
   const [showSignIn, setShowSignIn] = useState(true);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-  const [lastRun, setLastRun] = useState<{ score: number; seconds: number } | null>(null);
+  const [lastRun, setLastRun] = useState<LastRun | null>(null);
 
   useEffect(() => {
     const arm = () => unlockAudio();
@@ -251,7 +258,7 @@ function HubScreen({
   onSignOut: () => void;
   onSwitchAccount: () => void;
 }) {
-  const { best, runs, loading } = useBestScore(userId);
+  const { best, runs, loading } = useBestScore(userId, difficulty);
   const layout = MAZES[difficulty];
   const difficultyIcons = {
     easy: Sprout,
@@ -282,6 +289,10 @@ function HubScreen({
             <li>
               <span className="howto-icon howto-door"><DoorOpen className="icon-sm" /></span>
               Find SIP doors in order: SIP-1, then SIP-2, then SIP-3, SIP-4, and SIP-5.
+            </li>
+            <li>
+              <span className="howto-icon howto-ok"><Check className="icon-sm" /></span>
+              You walk the maze from inside. Use the corner map if you get lost.
             </li>
             <li>
               <span className="howto-icon howto-ok"><Check className="icon-sm" /></span>
@@ -333,7 +344,7 @@ function HubScreen({
           </div>
 
           <div className="hub-stats">
-            <div><strong>{loading ? '—' : best ?? 0}</strong><span>Best score</span></div>
+            <div><strong>{loading ? '—' : best ?? 0}</strong><span>Best on this board</span></div>
             <div><strong>{loading ? '—' : runs ?? 0}</strong><span>Runs</span></div>
           </div>
 
@@ -352,7 +363,7 @@ function HubScreen({
           <div className="preview-frame">
             <MiniMazePreview maze={layout.maze} />
           </div>
-          <Leaderboard />
+          <Leaderboard difficulty={difficulty} />
         </section>
       </div>
     </div>
@@ -374,7 +385,7 @@ function MiniMazePreview({ maze }: { maze: string[] }) {
   );
 }
 
-function Leaderboard() {
+function Leaderboard({ difficulty }: { difficulty: Difficulty }) {
   const [scores, setScores] = useState<GlobalScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -383,7 +394,7 @@ function Leaderboard() {
     setLoading(true);
     setFailed(false);
     try {
-      setScores(await getGlobalScores());
+      setScores(await getGlobalScores(difficulty));
     } catch {
       setFailed(true);
     } finally {
@@ -393,12 +404,12 @@ function Leaderboard() {
 
   useEffect(() => {
     void loadScores();
-  }, []);
+  }, [difficulty]);
 
   return (
     <section className="leaderboard">
       <div className="leaderboard-head">
-        <div><Medal className="icon-sm" /> Leaderboard</div>
+        <div><Medal className="icon-sm" /> {MAZES[difficulty].name} board</div>
         <button type="button" onClick={() => void loadScores()} disabled={loading} aria-label="Refresh">
           <RefreshCw className={`icon-sm ${loading ? 'spin' : ''}`} />
         </button>
@@ -408,13 +419,14 @@ function Leaderboard() {
       ) : failed ? (
         <p className="leaderboard-empty error">Could not load rankings.</p>
       ) : scores.length === 0 ? (
-        <p className="leaderboard-empty">Be the first on the board.</p>
+        <p className="leaderboard-empty">Be the first on the {MAZES[difficulty].name} board.</p>
       ) : (
         <div className="leaderboard-list">
           {scores.map((entry, index) => (
             <div key={entry.id} className="leaderboard-row">
               <span className={`rank ${index < 3 ? 'rank-top' : ''}`}>{index + 1}</span>
               <span className="name">@{entry.x_username}</span>
+              <span className="time">{entry.completion_time_seconds ? formatTime(entry.completion_time_seconds) : '—'}</span>
               <span className="score">{entry.score}</span>
             </div>
           ))}
@@ -435,11 +447,12 @@ function GameScreen({
   userId: string;
   username: string;
   onQuit: () => void;
-  onFinish: (result: { score: number; seconds: number }) => void;
+  onFinish: (result: LastRun) => void;
 }) {
   const { maze, start, exit, doors, name: difficultyName, id: difficultyId } = layout;
   const rounds = useMemo(() => buildDoorRounds(DOOR_COUNT), []);
   const [position, setPosition] = useState(start);
+  const [facing, setFacing] = useState<Facing>(2);
   const [openedDoors, setOpenedDoors] = useState<number[]>([]);
   const [pendingDoor, setPendingDoor] = useState<number | null>(null);
   const [overlay, setOverlay] = useState<Overlay>('none');
@@ -469,15 +482,20 @@ function GameScreen({
     const totalScore = Math.max(0, runScore + timeBonus);
     try {
       await saveScore(
-        { score: totalScore, doors_opened: openedDoors.length, completion_time_seconds: seconds },
+        {
+          score: totalScore,
+          doors_opened: openedDoors.length,
+          completion_time_seconds: seconds,
+          difficulty: difficultyId,
+        },
         userId,
         username,
       );
     } catch {
       // Still show completion if network fails briefly.
     }
-    onFinish({ score: totalScore, seconds });
-  }, [onFinish, openedDoors.length, runScore, seconds, userId, username]);
+    onFinish({ score: totalScore, seconds, difficulty: difficultyId });
+  }, [difficultyId, onFinish, openedDoors.length, runScore, seconds, userId, username]);
 
   const move = useCallback(
     (rowDelta: number, colDelta: number) => {
@@ -485,6 +503,11 @@ function GameScreen({
       const next = { row: position.row + rowDelta, col: position.col + colDelta };
       const cell = maze[next.row]?.[next.col];
       if (!cell || cell === '#') return;
+
+      if (rowDelta === -1) setFacing(0);
+      else if (colDelta === 1) setFacing(1);
+      else if (rowDelta === 1) setFacing(2);
+      else if (colDelta === -1) setFacing(3);
 
       const doorIndex = doors.findIndex((door) => door.row === next.row && door.col === next.col);
       if (doorIndex >= 0 && !openedDoors.includes(doorIndex)) {
@@ -556,6 +579,23 @@ function GameScreen({
   };
 
   const currentRound = pendingDoor === null ? null : rounds[pendingDoor];
+  const explorerCells = useMemo(() => {
+    const fwd = FORWARD[facing];
+    const right = RIGHT[facing];
+    const cells = [];
+    for (let depth = VIEW_DEPTH - 1; depth >= 0; depth--) {
+      for (let side = -VIEW_HALF; side <= VIEW_HALF; side++) {
+        cells.push({
+          key: `${depth}:${side}`,
+          row: position.row + fwd[0] * depth + right[0] * side,
+          col: position.col + fwd[1] * depth + right[1] * side,
+          depth,
+          side,
+        });
+      }
+    }
+    return cells;
+  }, [facing, position.col, position.row]);
 
   return (
     <div className="game-shell">
@@ -578,43 +618,39 @@ function GameScreen({
       </div>
 
       <div className="game-stage">
-        <div className={`maze-scene maze-scene-${difficultyId}`}>
-        <div
-          className="maze-board"
-          style={{ gridTemplateColumns: `repeat(${maze[0].length}, minmax(0, 1fr))` }}
-        >
-          {maze.flatMap((row, rowIndex) =>
-            [...row].map((cell, colIndex) => {
-              const doorIndex = doors.findIndex((door) => door.row === rowIndex && door.col === colIndex);
-              const isPlayer = position.row === rowIndex && position.col === colIndex;
+        <div className="maze-viewport">
+          <div className="maze-horizon" />
+          <div
+            className="maze-world"
+            style={{ gridTemplateColumns: `repeat(${VIEW_DEPTH}, var(--cell-size))` }}
+          >
+            {explorerCells.map((view) => {
+              const cell = maze[view.row]?.[view.col];
+              const isWall = !cell || cell === '#';
+              const doorIndex = doors.findIndex((door) => door.row === view.row && door.col === view.col);
               const isExit = cell === 'X';
               const opened = doorIndex >= 0 && doorIndex < nextDoorIndex;
               const locked = doorIndex > nextDoorIndex;
               const current = doorIndex === nextDoorIndex;
-              const floorVariant = (colIndex + rowIndex * 3) % 4;
-              const wallVariant = (colIndex * 2 + rowIndex) % 3;
-              const decor = cell !== '#' && doorIndex < 0 && !isExit ? (colIndex * 17 + rowIndex * 31) % 19 : -1;
+              const isHere = view.depth === 0 && view.side === 0;
+              const floorVariant = ((view.col ?? 0) + (view.row ?? 0) * 3) % 4;
+              const wallVariant = ((view.col ?? 0) * 2 + (view.row ?? 0)) % 3;
+              const far = view.depth >= 7 ? 'is-horizon' : view.depth >= 5 ? 'is-far' : '';
               return (
                 <div
-                  key={`${rowIndex}-${colIndex}`}
-                  className={`maze-cell ${cell === '#' ? `maze-wall maze-wall-${wallVariant}` : `maze-floor maze-floor-${floorVariant}`} ${isExit ? 'maze-exit' : ''}`}
+                  key={view.key}
+                  className={`maze-cell explorer-cell ${isWall ? `maze-wall maze-wall-${wallVariant}` : `maze-floor maze-floor-${floorVariant}`} ${isExit ? 'maze-exit' : ''} ${isHere ? 'is-here' : ''} ${far}`}
                 >
-                  {cell === '#' && (
+                  {isWall && (
                     <>
                       <span className="wall-top" />
                       <span className="wall-front" />
                       <span className="wall-side" />
+                      <span className="wall-left" />
                       {wallVariant === 0 && <span className="wall-lichen" />}
                       {wallVariant === 2 && <span className="wall-crack" />}
                     </>
                   )}
-                  {decor === 0 && <span className="maze-bush" />}
-                  {decor === 3 && <span className="maze-moss" />}
-                  {decor === 5 && <span className="maze-rock" />}
-                  {decor === 7 && <span className="maze-torch" />}
-                  {decor === 10 && <span className="maze-puddle" />}
-                  {decor === 13 && <span className="maze-vine" />}
-                  {decor === 16 && <span className="maze-rune" />}
                   {doorIndex >= 0 && <DoorTile label={doors[doorIndex].label} opened={opened} locked={locked} current={current} />}
                   {isExit && (
                     <div className={`exit-gate ${exitUnlocked ? 'exit-open' : 'exit-locked'}`}>
@@ -622,16 +658,21 @@ function GameScreen({
                       <span>EXIT</span>
                     </div>
                   )}
-                  {isPlayer && (
-                    <div className="maze-player">
-                      <Mascot size="sm" mood="idle" />
-                    </div>
-                  )}
                 </div>
               );
-            }),
-          )}
-        </div>
+            })}
+          </div>
+          <div className="maze-fog" />
+          <div className="maze-you">
+            <Mascot size="md" mood="idle" />
+          </div>
+          <Minimap
+            maze={maze}
+            doors={doors}
+            position={position}
+            exit={exit}
+            nextDoorIndex={nextDoorIndex}
+          />
         </div>
 
         <div className="touch-controls">
@@ -707,6 +748,41 @@ function GameScreen({
           }}
         />
       )}
+    </div>
+  );
+}
+
+function Minimap({
+  maze,
+  doors,
+  position,
+  exit,
+  nextDoorIndex,
+}: {
+  maze: string[];
+  doors: MazeDoor[];
+  position: { row: number; col: number };
+  exit: { row: number; col: number };
+  nextDoorIndex: number;
+}) {
+  return (
+    <div className="minimap" aria-hidden="true">
+      {maze.map((row, rowIndex) => (
+        <div key={rowIndex} className="minimap-row" style={{ gridTemplateColumns: `repeat(${maze[0].length}, 1fr)` }}>
+          {[...row].map((cell, colIndex) => {
+            const doorIndex = doors.findIndex((door) => door.row === rowIndex && door.col === colIndex);
+            const here = position.row === rowIndex && position.col === colIndex;
+            const isExit = rowIndex === exit.row && colIndex === exit.col;
+            const next = doorIndex === nextDoorIndex;
+            return (
+              <i
+                key={colIndex}
+                className={`minimap-cell ${cell === '#' ? 'is-wall' : 'is-floor'} ${here ? 'is-player' : ''} ${isExit ? 'is-exit' : ''} ${next ? 'is-door' : ''}`}
+              />
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
@@ -838,11 +914,11 @@ function FinishedScreen({
   onPlayAgain,
 }: {
   userId: string;
-  lastRun: { score: number; seconds: number } | null;
+  lastRun: LastRun | null;
   onMenu: () => void;
   onPlayAgain: () => void;
 }) {
-  const { best, loading } = useBestScore(userId);
+  const { best, loading } = useBestScore(userId, lastRun?.difficulty);
 
   return (
     <div className="app-shell center-screen finished-screen">
@@ -852,6 +928,11 @@ function FinishedScreen({
         <p className="feedback-subtitle">CONGRATULATIONS!</p>
         <h2>Run Complete</h2>
         <p>Your score has been saved.</p>
+        {lastRun && (
+          <div className={`difficulty-chip difficulty-${lastRun.difficulty}`} style={{ margin: '10px auto 0' }}>
+            {MAZES[lastRun.difficulty].name}
+          </div>
+        )}
         {lastRun && (
           <div className="finished-time">
             <Clock className="icon-sm" />
@@ -866,7 +947,7 @@ function FinishedScreen({
           <strong>{lastRun ? lastRun.score.toLocaleString() : '—'}</strong>
         </div>
         <div className="finished-score">
-          <span>Best score</span>
+          <span>Best {lastRun ? MAZES[lastRun.difficulty].name : ''} score</span>
           <strong>{loading ? '—' : best ?? 0}</strong>
         </div>
         <div className="finished-actions">
