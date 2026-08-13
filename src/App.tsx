@@ -1073,9 +1073,9 @@ function FinishedScreen({
       <div className="finished-card">
         <StandXLogo className="finished-logo" />
         <Mascot size="lg" mood="tired" />
-        <p className="feedback-subtitle">YOU WIN!</p>
+        <p className="feedback-subtitle">SWEET DREAMS</p>
         <h2>Out cold</h2>
-        <p>Stander hit the bed. Your score has been saved.</p>
+        <p>The maze is cleared. Stander took the pillow.</p>
         {lastRun && (
           <div className={`difficulty-chip difficulty-${lastRun.difficulty}`} style={{ margin: '10px auto 0' }}>
             {MAZES[lastRun.difficulty].name}
