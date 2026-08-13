@@ -100,6 +100,14 @@ function Mascot({
             <span className="mascot-tear mascot-tear-b" />
           </>
         )}
+        {mood === 'tired' && (
+          <>
+            <span className="mascot-mask-strap" />
+            <span className="mascot-mask">
+              <i className="mascot-mask-mark" />
+            </span>
+          </>
+        )}
         <div className="mascot-leg mascot-leg-left"><span className="mascot-foot" /></div>
         <div className="mascot-leg mascot-leg-right"><span className="mascot-foot" /></div>
         {mood === 'happy' && (
@@ -110,6 +118,17 @@ function Mascot({
           </>
         )}
       </div>
+      {mood === 'tired' && (
+        <>
+          <div className="mascot-bed">
+            <span className="bed-post bed-post-l" />
+            <span className="bed-post bed-post-r" />
+            <span className="bed-pillow" />
+            <span className="bed-blanket" />
+          </div>
+          <div className="sleep-zzz" aria-hidden="true"><i>z</i><i>Z</i><i>z</i></div>
+        </>
+      )}
     </div>
   );
 }
@@ -1050,8 +1069,8 @@ function FinishedScreen({
         <StandXLogo className="finished-logo" />
         <Mascot size="lg" mood="tired" />
         <p className="feedback-subtitle">YOU WIN!</p>
-        <h2>Run Complete</h2>
-        <p>Your score has been saved.</p>
+        <h2>Out cold</h2>
+        <p>Stander hit the bed. Your score has been saved.</p>
         {lastRun && (
           <div className={`difficulty-chip difficulty-${lastRun.difficulty}`} style={{ margin: '10px auto 0' }}>
             {MAZES[lastRun.difficulty].name}
