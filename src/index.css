@@ -815,13 +815,61 @@ button:disabled { opacity: .45; cursor: default; }
   border-radius: 1px;
 }
 
+.minimap-grid {
+  position: relative;
+}
+
+.minimap-sip {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  min-width: 11px;
+  height: 11px;
+  padding: 0 2px;
+  border-radius: 3px;
+  background: #1a120c;
+  color: #ffd2a8;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 11px;
+  text-align: center;
+  font-family: 'DM Mono', monospace;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .45);
+}
+
+.minimap-sip.is-next {
+  background: #ffb347;
+  color: #1a120c;
+}
+
+.minimap-sip.is-exit-label {
+  background: #f0c14a;
+  color: #1a120c;
+}
+
+.minimap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 6px;
+  margin-top: 6px;
+  color: #ffd2a8;
+  font-size: 8px;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+}
+
+.minimap-legend .is-next {
+  color: #ffb347;
+}
+
 .minimap-cell.is-wall { background: #8a928c; }
 .minimap-cell.is-floor { background: #3d5c3a; }
 .minimap-cell.is-seen.is-floor { background: #e24b4b; }
 .minimap-cell.is-door { background: #d4894a; }
 .minimap-cell.is-next { background: #ffb347; box-shadow: 0 0 0 1px #fff3; }
 .minimap-cell.is-exit { background: #f0c14a; }
-.minimap-cell.is-player { background: #3aa0ff; box-shadow: 0 0 0 1px #d6efff; }
+.minimap-cell.is-player { background: #57e876; box-shadow: 0 0 0 1px #f4fff6; }
 
 .maze-cell {
   position: relative;
@@ -1532,13 +1580,35 @@ button:disabled { opacity: .45; cursor: default; }
 }
 
 .mascot-happy .mascot-mouth {
-  width: 28%;
-  height: 14%;
-  border-bottom-width: 3px;
+  top: 70%;
+  width: 38%;
+  height: 20%;
+  border: 0;
+  border-radius: 0 0 16px 16px;
+  background: #1c1c1c;
+  box-shadow: inset 0 -7px 0 #ff6b8a;
 }
 
+.mascot-happy .mascot-eye {
+  height: 40%;
+  top: 20%;
+}
+
+.mascot-blush {
+  position: absolute;
+  width: 16%;
+  height: 12%;
+  border-radius: 50%;
+  background: rgba(255, 110, 130, .55);
+  z-index: 3;
+  transform: translateZ(20px);
+}
+
+.mascot-blush-l { left: 8%; top: 62%; }
+.mascot-blush-r { right: 8%; top: 62%; }
+
 .mascot.mascot-happy {
-  animation: mascotNod .48s ease-in-out 3;
+  animation: mascotNod .55s ease-in-out infinite;
 }
 
 @keyframes mascotNod {

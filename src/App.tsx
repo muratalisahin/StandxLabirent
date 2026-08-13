@@ -102,7 +102,13 @@ function Mascot({
         )}
         <div className="mascot-leg mascot-leg-left"><span className="mascot-foot" /></div>
         <div className="mascot-leg mascot-leg-right"><span className="mascot-foot" /></div>
-        {mood === 'happy' && <div className="mascot-flower" />}
+        {mood === 'happy' && (
+          <>
+            <span className="mascot-blush mascot-blush-l" />
+            <span className="mascot-blush mascot-blush-r" />
+            <div className="mascot-flower" />
+          </>
+        )}
       </div>
     </div>
   );
@@ -824,24 +830,52 @@ function Minimap({
   return (
     <div className={`minimap ${expanded ? 'minimap-expanded' : ''}`} aria-hidden="true">
       <div className="minimap-compass">{['N', 'E', 'S', 'W'][facing]}</div>
-      {maze.map((row, rowIndex) => (
-        <div key={rowIndex} className="minimap-row" style={{ gridTemplateColumns: `repeat(${maze[0].length}, 1fr)` }}>
-          {[...row].map((cell, colIndex) => {
-            const doorIndex = doors.findIndex((door) => door.row === rowIndex && door.col === colIndex);
-            const here = position.row === rowIndex && position.col === colIndex;
-            const isExit = rowIndex === exit.row && colIndex === exit.col;
-            const next = doorIndex === nextDoorIndex;
-            const anyDoor = doorIndex >= 0;
-            const seen = visited.has(`${rowIndex},${colIndex}`);
-            return (
-              <i
-                key={colIndex}
-                className={`minimap-cell ${cell === '#' ? 'is-wall' : 'is-floor'} ${seen ? 'is-seen' : ''} ${here ? 'is-player' : ''} ${isExit ? 'is-exit' : ''} ${anyDoor ? 'is-door' : ''} ${next ? 'is-next' : ''}`}
-              />
-            );
-          })}
-        </div>
-      ))}
+      <div className="minimap-grid">
+        {maze.map((row, rowIndex) => (
+          <div key={rowIndex} className="minimap-row" style={{ gridTemplateColumns: `repeat(${maze[0].length}, 1fr)` }}>
+            {[...row].map((cell, colIndex) => {
+              const doorIndex = doors.findIndex((door) => door.row === rowIndex && door.col === colIndex);
+              const here = position.row === rowIndex && position.col === colIndex;
+              const isExit = rowIndex === exit.row && colIndex === exit.col;
+              const next = doorIndex === nextDoorIndex;
+              const anyDoor = doorIndex >= 0;
+              const seen = visited.has(`${rowIndex},${colIndex}`);
+              return (
+                <i
+                  key={colIndex}
+                  className={`minimap-cell ${cell === '#' ? 'is-wall' : 'is-floor'} ${seen ? 'is-seen' : ''} ${here ? 'is-player' : ''} ${isExit ? 'is-exit' : ''} ${anyDoor ? 'is-door' : ''} ${next ? 'is-next' : ''}`}
+                />
+              );
+            })}
+          </div>
+        ))}
+        {doors.map((door, index) => (
+          <span
+            key={door.label}
+            className={`minimap-sip ${index === nextDoorIndex ? 'is-next' : ''}`}
+            style={{
+              left: `${((door.col + 0.5) / maze[0].length) * 100}%`,
+              top: `${((door.row + 0.5) / maze.length) * 100}%`,
+            }}
+          >
+            {index + 1}
+          </span>
+        ))}
+        <span
+          className="minimap-sip is-exit-label"
+          style={{
+            left: `${((exit.col + 0.5) / maze[0].length) * 100}%`,
+            top: `${((exit.row + 0.5) / maze.length) * 100}%`,
+          }}
+        >
+          X
+        </span>
+      </div>
+      <div className="minimap-legend">
+        {doors.map((door, index) => (
+          <span key={door.label} className={index === nextDoorIndex ? 'is-next' : ''}>{door.label}</span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1019,7 +1053,7 @@ function FinishedScreen({
       <div className="finished-card">
         <StandXLogo className="finished-logo" />
         <Mascot size="lg" mood="happy" />
-        <p className="feedback-subtitle">CONGRATULATIONS!</p>
+        <p className="feedback-subtitle">YOU WIN!</p>
         <h2>Run Complete</h2>
         <p>Your score has been saved.</p>
         {lastRun && (
